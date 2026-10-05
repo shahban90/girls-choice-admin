@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Girls Choice - Owner Panel</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#fff1f7,#fff);
+  color:#333;
+}
+
+.container{
+  max-width:900px;
+  margin:auto;
+  padding:20px;
+}
+
+.card{
+  background:#fff;
+  padding:24px;
+  margin:20px 0;
+  border-radius:22px;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
+}
+
+h1{
+  color:#d63384;
+  margin-top:0;
+}
+
+h2{
+  color:#d63384;
+}
+
+input,
+textarea{
+  width:100%;
+  padding:14px;
+  margin:8px 0 15px;
+  border:1px solid #ddd;
+  border-radius:12px;
+  font-size:15px;
+  outline:none;
+}
+
+input:focus,
+textarea:focus{
+  border-color:#d63384;
+}
+
+textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+button{
+  border:none;
+  padding:13px 20px;
+  border-radius:12px;
+  background:#d63384;
+  color:#fff;
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+.logout{
+  float:right;
+  background:#555;
+}
+
+.delete{
+  background:#dc3545;
+}
+
+.hidden{
+  display:none;
+}
+
+.msg{
+  margin-top:15px;
+  padding:12px;
+  border-radius:10px;
+  background:#fff0f6;
+}
+
+.product{
+  display:flex;
+  align-items:center;
+  gap:15px;
+  padding:15px 0;
+  border-bottom:1px solid #eee;
+}
+
+.product img{
+  width:90px;
+  height:90px;
+  object-fit:cover;
+  border-radius:15px;
+}
+
+.product-info{
+  flex:1;
+}
+
+.product-name{
+  font-size:18px;
+  font-weight:bold;
+  color:#d63384;
+}
+
+.price{
+  font-weight:bold;
+  margin-top:5px;
+}
+
+.small{
+  color:#777;
+  font-size:13px;
+  margin-top:5px;
+}
+
+@media(max-width:600px){
+
+  .product{
+    align-items:flex-start;
+  }
+
+  .product img{
+    width:75px;
+    height:75px;
+  }
+
+  .product-name{
+    font-size:16px;
+  }
+
+  .delete{
+    padding:9px 12px;
+    font-size:13px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- LOGIN -->
+
+<div id="loginBox" class="card">
+
+  <h1>🌸 Girls Choice</h1>
+
+  <h2>Owner Login</h2>
+
+  <p class="small">
+    Login karke apne products manage karein.
+  </p>
+
+  <input
+    id="email"
+    type="email"
+    placeholder="Owner Email"
+  >
+
+  <input
+    id="password"
+    type="password"
+    placeholder="Password"
+  >
+
+  <button onclick="login()">
+    🔐 Login
+  </button>
+
+  <div id="loginMsg"></div>
+
+</div>
+
+
+<!-- ADMIN PANEL -->
+
+<div id="adminBox" class="hidden">
+
+  <div class="card">
+
+    <button
+      class="logout"
+      onclick="logout()">
+      Logout
+    </button>
+
+    <h1>🌸 Girls Choice</h1>
+
+    <p>
+      <b>Owner Product Panel</b>
+    </p>
+
+    <p class="small">
+      Yahan se aap website ke products manage kar sakte hain.
+    </p>
+
+  </div>
+
+
+  <!-- ADD PRODUCT -->
+
+  <div class="card">
+
+    <h2>➕ Add New Product</h2>
+
+    <label>Product Name</label>
+
+    <input
+      id="productName"
+      type="text"
+      placeholder="Example: Beautiful Ladies Dress"
+    >
+
+
+    <label>Price</label>
+
+    <input
+      id="productPrice"
+      type="text"
+      placeholder="Example: Rs. 2,499"
+    >
+
+
+    <label>Description</label>
+
+    <textarea
+      id="productDescription"
+      placeholder="Product ki details likhein..."
+    ></textarea>
+
+
+    <label>Product Image</label>
+
+    <input
+      id="productImage"
+      type="file"
+      accept="image/*"
+    >
+
+
+    <button onclick="addProduct()">
+      ➕ Add Product
+    </button>
+
+    <div id="addMsg"></div>
+
+  </div>
+
+
+  <!-- PRODUCT LIST -->
+
+  <div class="card">
+
+    <h2>🛍️ Your Products</h2>
+
+    <div id="products">
+      Products loading...
+    </div>
+
+  </div>
+
+</div>
+
+</div>
+
+
+<script>
+
+/* ==============================
+   SUPABASE CONNECTION
+============================== */
+
+const SUPABASE_URL =
+"https://aysmwuhqkupbtklxhhyr.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_Gi51au7ypxBIoBMnLlBImw_cLundJmp";
+
+const supabaseClient =
+supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+
+/* ==============================
+   CHECK LOGIN
+============================== */
+
+async function checkUser(){
+
+  const {
+    data:{
+      session
+    }
+  } =
+  await supabaseClient.auth.getSession();
+
+  if(session){
+
+    showAdmin();
+
+  }else{
+
+    showLogin();
+
+  }
+
+}
+
+
+/* ==============================
+   LOGIN
+============================== */
+
+async function login(){
+
+  const email =
+  document
+  .getElementById("email")
+  .value
+  .trim();
+
+  const password =
+  document
+  .getElementById("password")
+  .value;
+
+  const msg =
+  document
+  .getElementById("loginMsg");
+
+
+  if(!email || !password){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Email aur password enter karo.</div>';
+
+    return;
+  }
+
+
+  msg.innerHTML =
+  '<div class="msg">⏳ Login ho raha hai...</div>';
+
+
+  const {
+    error
+  } =
+  await supabaseClient.auth.signInWithPassword({
+
+    email:email,
+
+    password:password
+
+  });
+
+
+  if(error){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Login failed: ' +
+    escapeHtml(error.message) +
+    '</div>';
+
+  }else{
+
+    msg.innerHTML =
+    '<div class="msg">✅ Login successful!</div>';
+
+    showAdmin();
+
+  }
+
+}
+
+
+/* ==============================
+   LOGOUT
+============================== */
+
+async function logout(){
+
+  await supabaseClient.auth.signOut();
+
+  showLogin();
+
+}
+
+
+/* ==============================
+   SHOW LOGIN
+============================== */
+
+function showLogin(){
+
+  document
+  .getElementById("loginBox")
+  .classList
+  .remove("hidden");
+
+
+  document
+  .getElementById("adminBox")
+  .classList
+  .add("hidden");
+
+}
+
+
+/* ==============================
+   SHOW ADMIN
+============================== */
+
+function showAdmin(){
+
+  document
+  .getElementById("loginBox")
+  .classList
+  .add("hidden");
+
+
+  document
+  .getElementById("adminBox")
+  .classList
+  .remove("hidden");
+
+
+  loadProducts();
+
+}
+
+
+/* ==============================
+   ADD PRODUCT
+============================== */
+
+async function addProduct(){
+
+  const name =
+  document
+  .getElementById("productName")
+  .value
+  .trim();
+
+
+  const price =
+  document
+  .getElementById("productPrice")
+  .value
+  .trim();
+
+
+  const description =
+  document
+  .getElementById("productDescription")
+  .value
+  .trim();
+
+
+  const file =
+  document
+  .getElementById("productImage")
+  .files[0];
+
+
+  const msg =
+  document
+  .getElementById("addMsg");
+
+
+  if(!name){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Product name likho.</div>';
+
+    return;
+
+  }
+
+
+  if(!file){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Product image select karo.</div>';
+
+    return;
+
+  }
+
+
+  msg.innerHTML =
+  '<div class="msg">⏳ Product upload ho raha hai...</div>';
+
+
+  /* IMAGE NAME */
+
+  const extension =
+  file.name
+  .split(".")
+  .pop();
+
+
+  const fileName =
+  Date.now() +
+  "-" +
+  Math.random()
+  .toString(36)
+  .substring(2) +
+  "." +
+  extension;
+
+
+  /* UPLOAD IMAGE */
+
+  const {
+    error:uploadError
+  } =
+  await supabaseClient
+  .storage
+  .from("product-images")
+  .upload(
+    fileName,
+    file,
+    {
+      contentType:file.type,
+      upsert:false
+    }
+  );
+
+
+  if(uploadError){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Image upload failed: ' +
+    escapeHtml(uploadError.message) +
+    '</div>';
+
+    return;
+
+  }
+
+
+  /* IMAGE URL */
+
+  const {
+    data:imageData
+  } =
+  supabaseClient
+  .storage
+  .from("product-images")
+  .getPublicUrl(fileName);
+
+
+  const imageUrl =
+  imageData.publicUrl;
+
+
+  /* SAVE PRODUCT */
+
+  const {
+    error:dbError
+  } =
+  await supabaseClient
+  .from("products")
+  .insert([{
+
+    name:name,
+
+    price:price,
+
+    description:description,
+
+    image_url:imageUrl
+
+  }]);
+
+
+  if(dbError){
+
+    msg.innerHTML =
+    '<div class="msg">❌ Product save failed: ' +
+    escapeHtml(dbError.message) +
+    '</div>';
+
+    return;
+
+  }
+
+
+  msg.innerHTML =
+  '<div class="msg">✅ Product successfully added!</div>';
+
+
+  /* CLEAR FORM */
+
+  document
+  .getElementById("productName")
+  .value="";
+
+
+  document
+  .getElementById("productPrice")
+  .value="";
+
+
+  document
+  .getElementById("productDescription")
+  .value="";
+
+
+  document
+  .getElementById("productImage")
+  .value="";
+
+
+  loadProducts();
+
+}
+
+
+/* ==============================
+   LOAD PRODUCTS
+============================== */
+
+async function loadProducts(){
+
+  const box =
+  document
+  .getElementById("products");
+
+
+  const {
+    data,
+    error
+  } =
+  await supabaseClient
+  .from("products")
+  .select("*")
+  .order(
+    "created_at",
+    {
+      ascending:false
+    }
+  );
+
+
+  if(error){
+
+    box.innerHTML =
+    '<div class="msg">❌ Products load nahi hue:<br>' +
+    escapeHtml(error.message) +
+    '</div>';
+
+    return;
+
+  }
+
+
+  if(!data || data.length===0){
+
+    box.innerHTML =
+    '<div class="msg">📦 Abhi koi product nahi hai.</div>';
+
+    return;
+
+  }
+
+
+  box.innerHTML="";
+
+
+  data.forEach(product=>{
+
+    const div =
+    document.createElement("div");
+
+
+    div.className="product";
+
+
+    div.innerHTML = `
+
+      <img
+        src="${escapeHtml(product.image_url || "")}"
+        alt="${escapeHtml(product.name)}"
+      >
+
+      <div class="product-info">
+
+        <div class="product-name">
+          ${escapeHtml(product.name)}
+        </div>
+
+        <div class="price">
+          ${escapeHtml(product.price || "")}
+        </div>
+
+        <div class="small">
+          ${escapeHtml(product.description || "")}
+        </div>
+
+      </div>
+
+      <button
+        class="delete"
+        onclick="deleteProduct(${product.id})">
+        🗑️ Delete
+      </button>
+
+    `;
+
+
+    box.appendChild(div);
+
+  });
+
+}
+
+
+/* ==============================
+   DELETE PRODUCT
+============================== */
+
+async function deleteProduct(id){
+
+  const confirmDelete =
+  confirm(
+    "Kya aap ye product delete karna chahte hain?"
+  );
+
+
+  if(!confirmDelete){
+
+    return;
+
+  }
+
+
+  const {
+    error
+  } =
+  await supabaseClient
+  .from("products")
+  .delete()
+  .eq("id",id);
+
+
+  if(error){
+
+    alert(
+      "Delete failed: " +
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  loadProducts();
+
+}
+
+
+/* ==============================
+   HTML SECURITY
+============================== */
+
+function escapeHtml(value){
+
+  return String(value)
+
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
+
+}
+
+
+/* ==============================
+   START APP
+============================== */
+
+checkUser();
+
+</script>
+
+</body>
+</html>
